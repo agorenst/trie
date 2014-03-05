@@ -1,4 +1,4 @@
-trie
-====
+prefixtree
+==========
 
-Various prefix and radix style tree implementations
+A simple prefix tree structure also designed to output to LaTeX
