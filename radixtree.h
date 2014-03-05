@@ -2,158 +2,120 @@
 #include <memory>
 #include <list>
 #include <iostream>
+#include <cassert>
 
-using std::endl;
-
-class node;
-
-class edge{
-    public:
-    std::string s;
-    std::shared_ptr<node> n;
-    edge(std::string s, std::shared_ptr<node> n): s(s), n(n) {}
-    edge(std::string s, node* n): s(s), n(n) {}
-
-    void print(std::ostream& o, std::string prefix);
-    void tikz_print(std::ostream& o, std::string s = "");
-};
-
-std::string shared_prefix(const std::string l, const std::string r) {
-    std::string p{""};
-    for (unsigned i = 0; i < std::min(l.size(), r.size()); ++i) {
-        if (l[i] == r[i]) {
-            p += l[i];
-        }
-        else {
-            break;
-        }
-    }
-    return p;
-}
-
-bool proper_prefix_of(const std::string p, const std::string s) {
-    if (p.size() >= s.size()) { return false; }
-    
-    for (unsigned i = 0; i < p.size(); ++i) {
-        if (p[i] != s[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-std::string strip_prefix(const std::string p, const std::string s) {
-    if (!proper_prefix_of(p, s)) { return "";}
-    return s.substr(p.size(), s.size());
-}
-
+template<class T>
 class node{
-    public:
-    std::list<std::shared_ptr<edge>> es;
-
-    node(std::initializer_list<std::shared_ptr<edge>> il): es(il) {}
-    node(std::initializer_list<edge*> il) {
-        for (auto it = il.begin(); it != il.end(); ++it) {
-            es.push_back(std::shared_ptr<edge>(*it));
-        }
-    }
-    node() {}
-
-    void insert(std::string& s) {
-        //cerr << "Inserting: " << s << endl;
-
-        if (s=="") { return; } // the path we just traversed represenst the tsring
-
-        //cerr << "About to enter for loop" << endl;
-        // for every edge,
-        for (auto it = es.begin(); it != es.end(); ++it) {
-            //cerr << "Starting for loop" << endl;
-            auto eptr = *it;
-            auto p = shared_prefix(eptr->s, s);
-            if (p == "") continue;
-
-            //cerr << "Prefix: " << p << "\tEdgestring: " << eptr->s << endl;
-
-            if (proper_prefix_of(p, s) && proper_prefix_of(p, eptr->s)) {
-                auto edgestringprime = strip_prefix(p, eptr->s);
-                auto inputstringprime = strip_prefix(p, s);
-                es.push_back(std::shared_ptr<edge>(new edge(p, new node{new edge(edgestringprime, eptr->n),
-                                                               new edge(inputstringprime, new node())})));
-                es.remove(eptr);
-                return;
-            }
-            if (eptr->s == s) { return; }
-            if (p == eptr->s) {
-                auto inputstringprime = strip_prefix(p, s);
-                return eptr->n->insert(inputstringprime); 
-            }
-            if (p == s) {
-                auto edgestringprime = strip_prefix(p, eptr->s);
-                es.push_back(std::shared_ptr<edge>(new edge(p, new node{new edge(edgestringprime, eptr->n)})));
-                es.remove(eptr);
-                return;
-            }
-        }
-        //cerr << "Base case, about to insert" << endl;
-        es.push_back(std::shared_ptr<edge>(new edge(s, new node)));
-    }
-
-    void print(std::ostream& o, std::string prefix) {
-        o << "N" << endl;
-        for (auto it = es.begin(); it != es.end(); ++it) {
-            (*it)->print(o, prefix);
-        }
-    }
-
-    void tikz_print(std::ostream& o, std::string s = "") {
-        if (es.size() == 0) {
-            o << "node{$\\times$} edge from parent node[left] {}";
-        }
-        else {
-        if (es.size() == 1) {
-            return (*es.begin())->tikz_print(o, (*es.begin())->s);
-        }
-        o << "node[circle, draw]{"+s+"}" << endl;
-        for (auto it = es.begin(); it != es.end(); ++it) {
-            o << "child {" << endl;
-            std::string edgelabel = "";
-            std::string vertlabel = "";
-            edgelabel += (*it)->s[0];
-            vertlabel += (*it)->s[1];
-            (*it)->tikz_print(o, vertlabel);
-            o << "edge from parent node[left]{" << edgelabel << "}" << endl;
-            o << "}" << endl;
-        }
-        }
-    }
-};
-void edge::print(std::ostream& o, std::string prefix) {
-    o << "(" << prefix << ")" << s << endl;
-    n->print(o, prefix+s);
-}
-void edge::tikz_print(std::ostream& o, std::string s) {
-    n->tikz_print(o, s);
-}
-class radixtree{
     private:
-        std::shared_ptr<node> r;
+        // an edge is simply a sequence of Ts and the node terminating that sequence
+        class edge : public std::pair<std::list<T>, std::shared_ptr<node<T>>> {
+            public:
+            edge(const std::list<T>& f, const std::shared_ptr<node<T>> s):
+                std::pair<std::list<T>, std::shared_ptr<node<T>>> (f,s) {}
+        };
+
+        typename std::list<edge> edge_list;
+
+        // really just a "find_if"
+        typename std::list<edge>::iterator edge_to_follow(T t) {
+            for (auto it = edge_list.begin(); it != edge_list.end(); ++it) {
+                if (*(it->first.begin()) == t) {
+                    return it;
+                }
+            }
+            return edge_list.end();
+        }
     public:
-        radixtree(): r(new node) {}
-        void insert(std::string s) {
-            r->insert(s);
-        }
-        void print(std::ostream& o) {
-            r->print(o, "");
-        }
-        void tikz_print(std::ostream& o) {
-            o << "\\";
-            r->tikz_print(o);
-            o << ";" << endl;
-        }
+        node(): edge_list() {}
+        node(const std::list<edge>& edge_list): edge_list(edge_list) {}
+
+        template<class Iter>
+            void insert(Iter first, Iter last) {
+                auto edge_iter = edge_to_follow(*first);
+
+                // if no edge has any prefix with [first, last) then we make a new edge.
+                if (edge_iter == edge_list.end()) {
+                    edge to_add(std::list<T>(first, last), std::shared_ptr<node>(new node));
+                    edge_list.push_back(to_add);
+                    return;
+                }
+
+                auto edge_first = edge_iter->first.begin();
+                auto edge_last = edge_iter->first.end();
+
+                // this loop should always run at least once
+                // we "consume" the common prefix between [edge_first, edge_list) and [first, last)
+                std::list<T> prefix;
+                while (first != last &&
+                        edge_first != edge_last &&
+                        (*edge_first) == (*first)) {
+                    prefix.push_back(*first);
+                    ++edge_first;
+                    ++first;
+                }
+                assert(prefix.size() > 0);
+
+                // this string is already included
+                if (first == last && edge_first == edge_last) {
+                    return;
+                }
+                // we input a superstring, ie, input = "abcde", edge = "abc"
+                // recurse to the child
+                if (first != last && edge_first == edge_last) {
+                    return edge_iter->second->insert(first, last);
+                }
+                // something about the input sequence means we have to make a new node.
+                if (edge_first != edge_last) {
+                    // we clip off the prefix, this creates a copy edge with only the suffix sequence
+                    edge clipped_orig(std::list<T>(edge_first, edge_last), edge_iter->second);
+
+                    // this creates the new intermediary node
+                    edge prefix_edge(prefix, std::shared_ptr<node>(new node(std::list<edge>{clipped_orig})));
+
+                    edge_list.erase(edge_iter); // erase the old copy of our edge
+
+                    edge_list.push_back(prefix_edge); // ok, we've rebuilt the tree with the new node.
+
+                    if (first != last) {
+                        prefix_edge.second->insert(first, last);
+                    }
+                    return;
+
+                }
+            }
+
+            void tikz_print(std::ostream& o) {
+                o << "node[circle,draw]{}\n";
+                for(auto& e : edge_list) {
+                std::cerr << "Printing edge with sequence of length " << e.first.size() << std::endl;
+                    o << "child {\n";
+                    e.second->tikz_print(o);
+                    o << "    edge from parent node[left]{\n";
+                    for (auto& s : e.first) {
+                        o << s;
+                    }
+                    o << "    }\n";
+                    o << "}\n";
+                }
+            }
 };
 
-std::ostream& operator<<(std::ostream& o, radixtree& r) {
-    r.print(o);
-    o << endl;
-    return o;
-}
+template<class T>
+class radixtree {
+    private:
+    std::shared_ptr<node<T>> root;
+    public:
+
+    radixtree(): root(new node<T>) {}
+
+    template<class Iter>
+    void insert(Iter first, Iter last) {
+        return root->insert(first, last);
+    }
+
+    void tikz_print(std::ostream& o) {
+        o << "\\";
+        root->tikz_print(o);
+        o << ";\n";
+    }
+};
