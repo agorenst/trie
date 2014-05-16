@@ -87,12 +87,11 @@ class node{
             void tikz_print(std::ostream& o) {
                 o << "node[circle,draw]{}\n";
                 for(auto& e : edge_list) {
-                std::cerr << "Printing edge with sequence of length " << e.first.size() << std::endl;
                     o << "child {\n";
                     e.second->tikz_print(o);
                     o << "    edge from parent node[left]{\n";
                     for (auto& s : e.first) {
-                        o << s;
+                        o << s << " ";
                     }
                     o << "    }\n";
                     o << "}\n";
