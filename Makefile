@@ -1,7 +1,7 @@
 all: radixtree prefixtree
 
 radixtree: radixtree.h radixtree.cpp
-	g++ -Wall -std=c++0x radixtree.cpp -o radixtree
+	clang++ -Wall -std=c++0x radixtree.cpp -o radixtree
 
 # pdf: radix_tree
 # 	rm -f rmt.tex
@@ -9,7 +9,7 @@ radixtree: radixtree.h radixtree.cpp
 # 	pdflatex rmt
 
 prefixtree: prefixtree.h prefixtree.cpp
-	g++ -Wall -std=c++0x prefixtree.cpp -o prefixtree
+	clang++ -Wall -std=c++0x prefixtree.cpp -o prefixtree
 
 # pdf: prefix_tree
 # 	rm -f pmt.tex

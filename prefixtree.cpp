@@ -2,6 +2,8 @@
 #include <sstream>
 #include "prefixtree.h"
 
+using namespace std;
+
 int main(int argc, char* argv[]) {
     string line;
     prefix_tree<int> t;
